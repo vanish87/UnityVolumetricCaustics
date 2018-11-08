@@ -1,0 +1,83 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+#include "Assets/Shaders/Common.cginc"
+RWStructuredBuffer<Beam> Result;
+RWTexture2D<float4> PosTex;
+RWTexture2D<float4> NormalTex;
+
+float3 LightPos;
+float4 LightParamters;//RefractionIndex, light type,
+
+
+float3 GetPos(uint2 index, uint2 offset)
+{
+	float texScale = 32.0f / 512.0f;
+	return PosTex[(index + offset) / texScale].rgb;
+}
+
+
+float3 GetNormal(uint2 index, uint2 offset)
+{
+	float texScale = 32.0f / 512.0f;
+	return NormalTex[(index + offset) / texScale].rgb;
+}
+
+float3 GetDir(float3 pos)
+{
+	return LightParamters.y > 0 ? LightPos : pos - LightPos.xyz;
+}
+
+float3 GetRefrect(float3 input, float3 normal)
+{
+	return normalize(refract(input, normal, LightParamters.x));
+}
+
+void SetResultA(uint2 id, uint2 offset, uint buffer_id)
+{
+	float3 pos = GetPos(id, offset);
+	float3 normal = GetNormal(id, offset);
+
+	float3 dir = GetDir(pos);
+	dir = normalize(dir);
+	normal = normalize(normal);
+
+	Result[buffer_id].pos.a = pos;
+	Result[buffer_id].normal.a = normal;
+	Result[buffer_id].refraction.a = GetRefrect(dir, normal);
+}
+void SetResultB(uint2 id, uint2 offset, uint buffer_id)
+{
+	float3 pos = GetPos(id, offset);
+	float3 normal = GetNormal(id, offset);
+
+	float3 dir = GetDir(pos);
+	dir = normalize(dir);
+	normal = normalize(normal);
+
+	Result[buffer_id].pos.b = pos;
+	Result[buffer_id].normal.b = normal;
+	Result[buffer_id].refraction.b = GetRefrect(dir, normal);
+}
+void SetResultC(uint2 id, uint2 offset, uint buffer_id)
+{
+	float3 pos = GetPos(id, offset);
+	float3 normal = GetNormal(id, offset);
+
+	float3 dir = GetDir(pos);
+	dir = normalize(dir);
+	normal = normalize(normal);
+
+	Result[buffer_id].pos.c = pos;
+	Result[buffer_id].normal.c = normal;
+	Result[buffer_id].refraction.c = GetRefrect(dir, normal);
+}
+
+[numthreads(32,32,1)]
+void CSMain (uint3 id : SV_DispatchThreadID, uint buffer_id : SV_GroupIndex)
+{	
+	SetResultA(id.xy, uint2(0, 0), buffer_id);
+	SetResultB(id.xy, uint2(0, 1), buffer_id);
+	SetResultC(id.xy, uint2(1, 1), buffer_id);
+}
+
